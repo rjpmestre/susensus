@@ -1,0 +1,113 @@
+/**
+* SUSE Theme CSS Variables and Styles
+* Based on SUSE Brand Guidelines 
+* https://brand.suse.com/design-language
+*/
+
+/* Import SUSE fonts from Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=SUSE:wght@100..800&family=SUSE+Mono:wght@100..800&display=swap');
+
+:root {
+  /* Typography */
+  --suse-font-family: 'SUSE', Verdana, sans-serif;
+  --suse-font-mono: 'SUSE Mono', 'Courier New', monospace;
+  
+  /* Primary Colors */
+  --suse-pine: #0c322c;
+  --suse-jungle: #30ba78;
+  --suse-midnight: #192072;
+  --suse-waterhole: #2453ff;
+  --suse-persimmon: #fe7c3f;
+  --suse-mint: #90ebcd;
+  --suse-fog: #efefef;
+  --suse-white: #ffffff;
+  
+  /* Shades */
+  --suse-jungle-dark: #25a568;
+  --suse-jungle-light: #42d29f;
+  --suse-waterhole-dark: #1a42cc;
+  --suse-pine-bg: #e8f7f0;
+}
+
+/* Base typography */
+body {
+  font-family: var(--suse-font-family);
+}
+
+/* Monospace text */
+.font-mono, code, pre, .room-code-suse {
+  font-family: var(--suse-font-mono);
+}
+
+/* Background gradients */
+.bg-suse-gradient {
+  background: linear-gradient(135deg, var(--suse-fog) 0%, var(--suse-pine-bg) 100%);
+}
+
+/* Buttons */
+.btn-suse-primary {
+  background-color: var(--suse-jungle);
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.btn-suse-primary:hover {
+  background-color: var(--suse-jungle-dark);
+}
+
+.btn-suse-secondary {
+  background-color: var(--suse-waterhole);
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.btn-suse-secondary:hover {
+  background-color: var(--suse-waterhole-dark);
+}
+
+/* Text colors */
+.text-suse-jungle {
+  color: var(--suse-jungle);
+}
+
+.text-suse-pine {
+  color: var(--suse-pine);
+}
+
+.text-suse-midnight {
+  color: var(--suse-midnight);
+}
+
+/* Background colors */
+.bg-suse-jungle {
+  background-color: var(--suse-jungle);
+}
+
+.bg-suse-jungle-light {
+  background-color: var(--suse-jungle-light);
+}
+
+.bg-suse-mint {
+  background-color: var(--suse-mint);
+}
+
+.bg-suse-pine-light {
+  background-color: var(--suse-pine-bg);
+}
+
+/* Badges and accents */
+.badge-suse-voted {
+  background-color: var(--suse-mint);
+  color: var(--suse-pine);
+}
+
+.badge-suse-waiting {
+  background-color: var(--suse-persimmon);
+  color: white;
+}
+
+/* Room code styling */
+.room-code-suse {
+  color: var(--suse-jungle);
+  font-weight: bold;
+}

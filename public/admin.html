@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Susensus - Admin</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/stylesheets/suse-theme.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body class="min-h-screen" style="background: linear-gradient(135deg, #efefef 0%, #e8f7f0 100%);">
+  <div x-data="adminApp()" x-init="init()" class="container mx-auto px-4 py-8">
+    
+    <!-- Header -->
+    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+      <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <h1 class="text-2xl sm:text-3xl font-bold text-gray-800"><i class="fa-brands fa-suse" style="color: #30ba78;"></i> Susensus</h1>
+          <p class="text-sm sm:text-base text-gray-600 mt-1">Simultaneous Real-Time Voting</p>
+        </div>
+        <div x-show="roomCode" class="text-left sm:text-right w-full sm:w-auto">
+          <p class="text-xs sm:text-sm text-gray-600">Room Code</p>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="text-2xl sm:text-3xl font-bold room-code-suse" x-text="roomCode"></span>
+            <button @click="copyRoomCode()" 
+                    class="px-2 sm:px-3 py-1 rounded transition text-xs sm:text-sm" style="background-color: #90ebcd; color: #0c322c;">
+              <i class="fa-solid fa-copy"></i> Copy
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Room Management -->
+    <div x-show="roomCode" class="space-y-6">
+      
+      <!-- Participants Panel -->
+      <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg sm:text-xl font-bold text-gray-800">
+            <i class="fa-solid fa-users"></i> Participants (<span x-text="participants.length"></span>)
+          </h2>
+          <button @click="toggleParticipantsView()" 
+                  class="text-xs px-3 py-1 rounded transition"
+                  :style="participantsViewMode === 'cards' ? 'background-color: #30ba78; color: white;' : 'background-color: #efefef; color: #0c322c;'">
+            <i :class="participantsViewMode === 'cards' ? 'fa-solid fa-grip' : 'fa-solid fa-list'"></i>
+            <span x-text="participantsViewMode === 'cards' ? 'Cards' : 'List'"></span>
+          </button>
+        </div>
+        
+        <div x-show="participants.length === 0" class="text-center py-8 text-gray-500">
+          Waiting for participants...
+        </div>
+
+        <!-- Cards View -->
+        <div x-show="participantsViewMode === 'cards'" class="flex flex-wrap gap-3 justify-center">
+          <template x-for="participant in participants" :key="participant.socketId">
+            <div class="relative bg-gradient-to-br from-white to-gray-50 border-2 rounded-xl shadow-md hover:shadow-lg transition-shadow p-3 flex flex-col items-center justify-between" 
+                 style="width: 110px; height: 140px; border-color: #90ebcd;">
+              
+              <!-- Participant Icon -->
+              <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                   style="background: linear-gradient(135deg, #30ba78 0%, #2453ff 100%); color: white;">
+                <i class="fa-solid fa-user"></i>
+              </div>
+              
+              <!-- Participant Name -->
+              <div class="text-center flex-1 flex items-center justify-center px-1">
+                <p class="font-semibold text-xs leading-tight break-words" style="color: #0c322c;" x-text="participant.name"></p>
+              </div>
+              
+              <!-- Status Badge -->
+              <div class="w-full">
+                <div x-show="participant.hasVoted && status === 'voting'" 
+                     class="text-xs px-1 py-1 rounded-full text-center badge-suse-voted">
+                  <i class="fa-solid fa-check"></i>
+                </div>
+                <div x-show="!participant.hasVoted && status === 'voting'" 
+                     class="text-xs px-1 py-1 rounded-full text-center badge-suse-waiting">
+                  <i class="fa-solid fa-clock"></i>
+                </div>
+                <div x-show="status !== 'voting'" 
+                     class="text-xs py-1 text-center text-gray-400">
+                  Ready
+                </div>
+              </div>
+              
+              <!-- Kick Button -->
+              <button @click="kickParticipant(participant.socketId)" 
+                      class="absolute top-1 right-1 w-5 h-5 flex items-center justify-center rounded-full bg-red-100 hover:bg-red-200 text-red-600 transition">
+                <i class="fa-solid fa-xmark text-xs"></i>
+              </button>
+            </div>
+          </template>
+        </div>
+        
+        <!-- List View -->
+        <div x-show="participantsViewMode === 'list'" class="space-y-2">
+          <template x-for="participant in participants" :key="participant.socketId">
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div class="flex items-center gap-3">
+                <span class="text-base font-medium" style="color: #0c322c;" x-text="participant.name"></span>
+                <span x-show="participant.hasVoted && status === 'voting'" 
+                      class="text-xs px-2 py-1 rounded-full badge-suse-voted">
+                  <i class="fa-solid fa-check"></i> Voted
+                </span>
+                <span x-show="!participant.hasVoted && status === 'voting'" 
+                      class="text-xs px-2 py-1 rounded-full badge-suse-waiting">
+                  <i class="fa-solid fa-clock"></i> Waiting
+                </span>
+              </div>
+              <button @click="kickParticipant(participant.socketId)" 
+                      class="text-red-600 hover:text-red-800 text-sm font-medium">
+                <i class="fa-solid fa-ban"></i> Kick
+              </button>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- Voting Control Panel -->
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">🎲 Voting Control</h2>
+
+        <!-- Start Voting -->
+        <div x-show="status === 'waiting'" class="space-y-4">
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Topic / Question</label>
+            <input type="text" 
+                   x-model="topic" 
+                   class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                   placeholder="E.g., Complexity of task #123">
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Templates (select one or more)
+            </label>
+            <div class="space-y-2 max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3">
+              <template x-for="template in templates" :key="template.id">
+                <label class="flex items-center gap-2 p-2 hover:bg-gray-50 rounded cursor-pointer">
+                  <input type="checkbox" 
+                         :value="template.id"
+                         x-model="selectedTemplates"
+                         class="w-4 h-4" style="accent-color: #30ba78;">
+                  <span x-text="template.name" class="text-sm"></span>
+                </label>
+              </template>
+            </div>
+            <p class="text-xs text-gray-500 mt-1" x-show="selectedTemplates.length > 0">
+              Selected: <span x-text="selectedTemplates.length"></span> template(s)
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              Timer in seconds (optional)
+            </label>
+            <div class="flex gap-2">
+              <input type="number" 
+                     x-model.number="timerSeconds" 
+                     min="0"
+                     class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                     placeholder="Seconds (0 = no timer)">
+            </div>
+          </div>
+
+          <button @click="startVoting()" 
+                  :disabled="selectedTemplates.length === 0 || !topic.trim() || participants.length === 0"
+                  class="w-full bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition">
+            <i class="fa-solid fa-play"></i> Start Voting
+          </button>
+        </div>
+
+        <!-- During Voting -->
+        <div x-show="status === 'voting'" class="space-y-4">
+          <div class="rounded-lg p-4" style="background-color: #e8f7f0; border: 1px solid #90ebcd;">
+            <p class="font-semibold mb-2" style="color: #0c322c;"><i class="fa-solid fa-chart-bar"></i> Voting in Progress</p>
+            <p class="text-sm mb-2" style="color: #0c322c;"><strong>Topic:</strong> <span x-text="currentRound?.topic"></span></p>
+            
+            <!-- Timer Display -->
+            <div x-show="timerRemaining !== null" class="mb-3">
+              <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-blue-900">⏱️ Time Remaining:</span>
+                <span class="text-2xl font-bold" 
+                      :class="timerRemaining <= 10 ? 'text-red-600' : 'text-blue-900'"
+                      x-text="formatTime(timerRemaining)"></span>
+              </div>
+              <div class="w-full bg-blue-200 rounded-full h-2">
+                <div class="bg-blue-600 h-2 rounded-full transition-all duration-1000" 
+                     :style="`width: ${(timerRemaining / (currentRound?.timerSeconds || 1)) * 100}%`"></div>
+              </div>
+            </div>
+
+            <div class="flex items-center justify-between">
+              <span class="text-sm" style="color: #0c322c;">
+                Votes: <strong x-text="voteCount"></strong> / <strong x-text="participants.length"></strong>
+              </span>
+              <div class="text-2xl" x-text="getVoteProgressEmoji()"></div>
+            </div>
+          </div>
+
+          <button @click="revealResults()" 
+                  class="w-full text-white py-3 rounded-lg font-semibold transition btn-suse-primary">
+            <i class="fa-solid fa-eye"></i> Reveal Results
+          </button>
+        </div>
+
+        <!-- Results Revealed -->
+        <div x-show="status === 'revealed'" class="space-y-4">
+          <div class="rounded-lg p-4" style="background-color: #e8f7f0; border: 1px solid #90ebcd;">
+            <p class="font-semibold mb-2" style="color: #0c322c;"><i class="fa-solid fa-chart-bar"></i> Results</p>
+            
+              <!-- Stats -->
+              <div x-show="stats" class="space-y-3 mb-4">
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="bg-white p-3 rounded">
+                    <p class="text-xs text-gray-600">Total Participants</p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="stats?.totalParticipants || 0"></p>
+                  </div>
+                  <div class="bg-white p-3 rounded">
+                    <p class="text-xs text-gray-600">Templates</p>
+                    <p class="text-2xl font-bold text-gray-900" x-text="Object.keys(stats?.byTemplate || {}).length"></p>
+                  </div>
+                </div>              <!-- Vote Distribution -->
+              <div class="bg-white p-4 rounded">
+                <p class="text-sm font-medium text-gray-700 mb-3">Vote Distribution</p>
+                
+                <template x-for="(templateStats, templateId) in stats?.byTemplate" :key="templateId">
+                  <div class="mb-4 pb-4 border-b last:border-0">
+                    <p class="text-xs font-semibold mb-2" style="color: #0c322c;" x-text="getTemplateName(templateId)"></p>
+                    <template x-for="(count, value) in templateStats.distribution" :key="value">
+                      <div class="mb-2">
+                        <div class="flex items-center justify-between text-sm mb-1">
+                          <span class="font-medium" x-html="formatVoteValue(templateId, value)"></span>
+                          <span x-text="`${count} vote${count > 1 ? 's' : ''} (${Math.round((count / templateStats.totalVotes) * 100)}%)`"></span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                          <div class="h-2 rounded-full" 
+                               :style="`width: ${(count / templateStats.totalVotes) * 100}%; background-color: #30ba78;`"></div>
+                        </div>
+                      </div>
+                    </template>
+                  </div>
+                </template>
+              </div>
+
+              <!-- Popular Combinations -->
+              <div x-show="stats?.combinations && stats.combinations.length > 0" class="bg-white p-4 rounded">
+                <p class="text-sm font-medium text-gray-700 mb-3"><i class="fa-solid fa-fire" style="color: #fe7c3f;"></i> Popular Combinations</p>
+                <div class="space-y-2">
+                  <template x-for="(combo, index) in stats?.combinations" :key="index">
+                    <div class="flex items-center justify-between text-sm py-2 px-3 rounded" style="background-color: #e8f7f0;">
+                      <span class="font-medium" x-html="formatCombination(combo.combo)"></span>
+                      <span class="font-semibold" style="color: #30ba78;" x-text="`${combo.count} vote${combo.count > 1 ? 's' : ''} (${Math.round((combo.count / stats.totalParticipants) * 100)}%)`"></span>
+                    </div>
+                  </template>
+                </div>
+              </div>
+
+              <!-- Detailed Votes -->
+              <div class="bg-white p-4 rounded">
+                <div class="flex items-center justify-between mb-3">
+                  <p class="text-sm font-medium text-gray-700">Detailed Votes</p>
+                  <button @click="toggleDetailedVotes()" 
+                          class="text-xs px-3 py-1 rounded transition"
+                          :style="showDetailedVotes ? 'background-color: #30ba78; color: white;' : 'background-color: #efefef; color: #0c322c;'">
+                    <i :class="showDetailedVotes ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash'"></i>
+                    <span x-text="showDetailedVotes ? 'Hide' : 'Show'"></span>
+                  </button>
+                </div>
+                <div x-show="showDetailedVotes" x-collapse class="space-y-2 max-h-60 overflow-y-auto">
+                  <template x-for="(participantVotes, socketId) in detailedVotes" :key="socketId">
+                    <div class="border-b pb-2 mb-2 last:border-0">
+                      <p class="font-medium text-sm mb-1" x-text="participantVotes.name"></p>
+                      <div class="flex flex-wrap gap-2">
+                        <template x-for="(voteData, templateId) in participantVotes.votes" :key="templateId">
+                          <span class="text-xs px-2 py-1 rounded" style="background-color: #c0efde; color: #0c322c;">
+                            <span x-text="getTemplateShortName(templateId)"></span>: 
+                            <strong x-html="formatVoteValue(templateId, voteData.value)"></strong>
+                          </span>
+                        </template>
+                      </div>
+                    </div>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button @click="endRound()" 
+                  class="w-full text-white py-3 rounded-lg font-semibold transition btn-suse-primary">
+            <i class="fa-solid fa-rotate"></i> New Round
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Toast Notifications -->
+    <div x-show="toast.show" 
+         x-transition
+         class="fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg"
+         :class="toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'"
+         style="display: none;">
+      <p class="text-white font-medium" x-text="toast.message"></p>
+    </div>
+
+  </div>
+
+  <script src="/javascripts/admin.js"></script>
+</body>
+</html>

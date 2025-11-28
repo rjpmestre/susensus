@@ -1,0 +1,15 @@
+{
+  "name": "susensus",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node bin/www"
+  },
+  "dependencies": {
+    "cookie-parser": "~1.4.4",
+    "debug": "~2.6.9",
+    "express": "^5.1.0",
+    "morgan": "~1.9.1",
+    "socket.io": "^4.8.1"
+  }
+}
