@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Susensus - Participant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/stylesheets/suse-theme.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+
+<body class="50 min-h-screen" style="background: linear-gradient(135deg, #efefef 0%, #e8f7f0 100%);">
+    <div x-data="participantApp()" x-init="init()" class="container mx-auto px-4 py-8 max-w-2xl">
+
+        <!-- Header -->
+        <div class="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-6">
+            <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-800"><i class="fa-brands fa-suse" style="color: #30ba78;"></i> Susensus</h1>
+                    <p class="text-sm sm:text-base text-gray-600 mt-1">Simultaneous Real-Time Voting</p>
+                </div>
+                <div x-show="joined && roomCode" class="text-left sm:text-right w-full sm:w-auto">
+                    <p class="text-xs sm:text-sm text-gray-600">Room</p>
+                    <p class="text-xl sm:text-2xl font-bold room-code-suse" x-text="roomCode"></p>
+                    <div class="flex items-center gap-2 sm:gap-3 mt-2 text-xs sm:text-sm text-gray-600 flex-wrap">
+                        <span class="flex items-center gap-1">
+                            <i class="fa-solid fa-users"></i>
+                            <span x-text="participantCount"></span>
+                        </span>
+                        <span class="text-gray-400">•</span>
+                        <span x-text="name" class="font-medium text-gray-700"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Room -->
+        <div x-show="!joined" class="bg-white rounded-lg shadow-md p-6 sm:p-8">
+            <h2 class="text-xl sm:text-2xl font-bold mb-6 text-center">Join Room</h2>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Room Code</label>
+                    <input type="text" x-model="roomCode" @input="roomCode = roomCode.toUpperCase()" maxlength="6"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent uppercase text-center text-2xl font-bold tracking-wider"
+                        style="--tw-ring-color: #2453ff;"
+                        placeholder="AB12">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Your Name</label>
+                    <input type="text" x-model="name" @keyup.enter="joinRoom()" maxlength="50"
+                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:border-transparent"
+                        style="--tw-ring-color: #2453ff;"
+                        placeholder="John Silva">
+                </div>
+                <button @click="joinRoom()" :disabled="!roomCode.trim() || !name.trim()"
+                    class="w-full text-white py-3 rounded-lg font-semibold transition disabled:bg-gray-300 disabled:cursor-not-allowed btn-suse-primary">
+                    Join
+                </button>
+            </div>
+        </div>
+
+        <!-- In Room -->
+        <div x-show="joined" class="space-y-6">
+
+            <!-- Waiting State -->
+            <div x-show="status === 'waiting'" class="bg-white rounded-lg shadow-md p-8 text-center">
+                <div class="text-6xl mb-4">⏳</div>
+                <p class="text-xl text-gray-600">Waiting for voting to start...</p>
+            </div>
+
+            <!-- Voting State -->
+            <div x-show="status === 'voting'" class="space-y-4">
+
+                <!-- Topic -->
+                <div class="rounded-lg p-4" style="background-color: #e8f7f0; border: 1px solid #90ebcd;">
+                    <p class="text-sm font-medium mb-1" style="color: #30ba78;"><i class="fa-solid fa-clipboard"></i> Topic</p>
+                    <p class="text-lg font-bold" style="color: #0c322c;" x-text="currentRound?.topic"></p>
+
+                    <!-- Timer -->
+                    <div x-show="timerRemaining !== null" class="mt-3">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm font-medium" style="color: #0c322c;"><i class="fa-solid fa-stopwatch"></i> Time Remaining:</span>
+                            <span class="text-xl font-bold"
+                                :class="timerRemaining <= 10 ? 'text-red-600' : ''"
+                                :style="timerRemaining > 10 ? 'color: #0c322c' : ''"
+                                x-text="formatTime(timerRemaining)"></span>
+                        </div>
+                        <div class="w-full rounded-full h-2" style="background-color: #d1ede2;">
+                            <div class="h-2 rounded-full transition-all duration-1000"
+                                :style="`width: ${(timerRemaining / (currentRound?.timerSeconds || 1)) * 100}%; background-color: #2453ff;`"></div>
+                        </div>
+                    </div>
+                </div>
+
+                
+                <!-- Vote Options -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"
+                        x-text="hasVotedAll ? 'Change your votes:' : 'Cast your votes:'"></h3>
+                    <template x-for="(template, index) in templates" :key="template.id">
+                        <div class="mb-6 pb-6 border-b last:border-0">
+                            <div class="flex items-center justify-between mb-3">
+                                <h4 class="font-semibold text-gray-700" x-text="template.name"></h4> <span
+                                    x-show="myVotes[template.id]"
+                                    class="text-xs px-2 py-1 rounded badge-suse-voted"> <i class="fa-solid fa-check"></i> <span
+                                        x-text="myVotes[template.id]"></span> </span>
+                            </div> <!-- Numeric Options -->
+                            <div x-show="template.type === 'numeric'" class="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                                <template x-for="option in template.options" :key="option"> <button
+                                        @click="vote(template.id, option)"
+                                        :class="myVotes[template.id] === option ? 'text-white' : 'text-gray-700'" :style="myVotes[template.id] === option ? 'background-color: #30ba78' : 'background-color: #efefef'"
+                                        class="aspect-square font-bold text-lg rounded-lg transition transform hover:scale-105 active:scale-95">
+                                        <span x-text="option"></span> </button> </template> </div>
+                            <!-- Categorical Options -->
+                            <div x-show="template.type === 'categorical'" class="space-y-2"> <template
+                                    x-for="option in template.options" :key="option.value || option"> <button
+                                        @click="vote(template.id, option.value || option)"
+                                        :class="myVotes[template.id] === (option.value || option) ? 'text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-900'" :style="myVotes[template.id] === (option.value || option) ? 'background-color: #30ba78' : ''"
+                                        class="w-full p-3 rounded-lg font-semibold transition transform hover:scale-102"
+                                        x-text="option.label || option"> </button> </template> </div>
+                        </div>
+                    </template>
+                </div>
+
+                <!-- Voting Progress -->
+                <div class="bg-white rounded-lg shadow-md p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm text-gray-600">
+                            Voted: <strong x-text="voteCount"></strong> / <strong x-text="participantCount"></strong>
+                        </span>
+                        <span x-show="hasVotedAll"
+                            class="text-sm px-3 py-1 rounded-full font-medium badge-suse-voted">
+                            <i class="fa-solid fa-check"></i> You already voted!
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Current Vote Display -->
+                <div x-show="hasVotedAll" class="border rounded-lg p-4 text-center mt-4" style="background-color: #eafaf4; border-color: #008657;">
+                    <p class="text-sm mb-2" style="color: #008657;"><i class="fa-solid fa-circle-check"></i> All votes cast!</p>
+                    <div class="flex flex-wrap gap-2 justify-center">
+                        <template x-for="(vote, templateId) in myVotes" :key="templateId">
+                            <span class="text-xs px-3 py-1 rounded-full badge-suse-voted">
+                                <span x-text="getTemplateShortName(templateId)"></span>: <strong x-html="formatVoteValue(templateId, vote)"></strong>
+                            </span>
+                        </template>
+                    </div>
+                    <p class="text-xs mt-2" style="color: #0c322c;">You can change your votes above until results are revealed
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- Results State -->
+            <div x-show="status === 'revealed'" class="space-y-4">
+
+                <!-- Your Votes -->
+                <div class="rounded-lg p-4" style="background-color: #e8f7f0; border: 1px solid #90ebcd;">
+                    <p class="text-sm font-medium mb-2" style="color: #30ba78;">Your Votes</p>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="(vote, templateId) in myVotes" :key="templateId">
+                            <div class="bg-white px-3 py-2 rounded">
+                                <p class="text-xs text-gray-600" x-text="getTemplateName(templateId)"></p>
+                                <p class="text-xl font-bold" style="color: #0c322c;" x-html="formatVoteValue(templateId, vote)"></p>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="bg-white rounded-lg shadow-md p-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4"><i class="fa-solid fa-chart-bar"></i> Results</h3>
+
+                    <div x-show="stats" class="space-y-4">
+
+                        <!-- Metrics -->
+                        <div class="grid grid-cols-2 gap-4 mb-4">
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <p class="text-xs text-gray-600 mb-1">Participants</p>
+                                <p class="text-2xl font-bold text-gray-900" x-text="stats?.totalParticipants || 0"></p>
+                            </div>
+                            <div class="bg-gray-50 p-4 rounded-lg text-center">
+                                <p class="text-xs text-gray-600 mb-1">Questions</p>
+                                <p class="text-2xl font-bold text-gray-900"
+                                    x-text="Object.keys(stats?.byTemplate || {}).length"></p>
+                            </div>
+                        </div>
+
+                        <!-- Distribution per template -->
+                        <template x-for="(templateStats, templateId) in stats?.byTemplate" :key="templateId">
+                            <div class="mb-4">
+                                <p class="text-sm font-medium text-gray-700 mb-2" x-text="getTemplateName(templateId)">
+                                </p>
+                                <template x-for="(count, value) in templateStats.distribution" :key="value">
+                                    <div class="mb-2">
+                                        <div class="flex items-center justify-between text-sm mb-1">
+                                            <span class="font-medium" x-html="formatVoteValue(templateId, value)"></span>
+                                            <span
+                                                x-text="`${count} vote${count > 1 ? 's' : ''} (${Math.round((count / templateStats.totalVotes) * 100)}%)`"></span>
+                                        </div>
+                                        <div class="w-full bg-gray-200 rounded-full h-3">
+                                            <div class="h-3 rounded-full transition-all"
+                                                :style="`width: ${(count / templateStats.totalVotes) * 100}%; background-color: #30ba78;`"></div>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </template>
+
+                        <!-- Popular Combinations -->
+                        <div x-show="stats?.combinations && stats.combinations.length > 0" class="mt-4 p-4 rounded-lg" style="background-color: #e8f7f0;">
+                            <p class="text-sm font-medium text-gray-700 mb-3"><i class="fa-solid fa-fire" style="color: #fe7c3f;"></i> Popular Combinations</p>
+                            <div class="space-y-2">
+                                <template x-for="(combo, index) in stats?.combinations" :key="index">
+                                    <div class="flex items-center justify-between text-sm py-2 px-3 bg-white rounded">
+                                        <span class="font-medium" x-html="formatCombination(combo.combo)"></span>
+                                        <span class="font-semibold" style="color: #30ba78;" x-text="`${combo.count} vote${combo.count > 1 ? 's' : ''} (${Math.round((combo.count / stats.totalParticipants) * 100)}%)`"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Waiting for next round -->
+                <div class="rounded-lg p-4 text-center" style="background-color: #e8f7f0; border: 1px solid #90ebcd;">
+                    <p style="color: #0c322c;">Waiting for next round...</p>
+                </div>
+
+            </div>
+
+            <!-- Participants List -->
+            <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-base sm:text-lg font-bold text-gray-800"><i class="fa-solid fa-users"></i> Participants</h3>
+                    <button @click="toggleParticipantsView()" 
+                            class="text-xs px-3 py-1 rounded transition"
+                            :style="participantsViewMode === 'cards' ? 'background-color: #30ba78; color: white;' : 'background-color: #efefef; color: #0c322c;'">
+                        <i :class="participantsViewMode === 'cards' ? 'fa-solid fa-grip' : 'fa-solid fa-list'"></i>
+                        <span x-text="participantsViewMode === 'cards' ? 'Cards' : 'List'"></span>
+                    </button>
+                </div>
+                
+                <!-- Cards View -->
+                <div x-show="participantsViewMode === 'cards'" class="flex flex-wrap gap-3 justify-center max-h-96 overflow-y-auto">
+                    <template x-for="participant in participants" :key="participant.socketId">
+                        <div class="bg-gradient-to-br from-white to-gray-50 border-2 rounded-xl shadow-md p-3 flex flex-col items-center justify-between" 
+                             style="width: 110px; height: 140px; border-color: #90ebcd;">
+                          
+                          <!-- Participant Icon -->
+                          <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl"
+                               style="background: linear-gradient(135deg, #30ba78 0%, #2453ff 100%); color: white;">
+                            <i class="fa-solid fa-user"></i>
+                          </div>
+                          
+                          <!-- Participant Name -->
+                          <div class="text-center flex-1 flex items-center justify-center px-1">
+                            <p class="font-semibold text-xs leading-tight break-words" style="color: #0c322c;" x-text="participant.name"></p>
+                          </div>
+                          
+                          <!-- Status Badge -->
+                          <div class="w-full">
+                            <div x-show="participant.hasVoted && status === 'voting'" 
+                                 class="text-xs px-1 py-1 rounded-full text-center badge-suse-voted">
+                              <i class="fa-solid fa-check"></i>
+                            </div>
+                            <div x-show="!participant.hasVoted && status === 'voting'" 
+                                 class="text-xs px-1 py-1 rounded-full text-center badge-suse-waiting">
+                              <i class="fa-solid fa-clock"></i>
+                            </div>
+                            <div x-show="status !== 'voting'" 
+                                 class="text-xs py-1 text-center text-gray-400">
+                              <i class="fa-solid fa-circle" style="font-size: 6px;"></i>
+                            </div>
+                          </div>
+                        </div>
+                    </template>
+                </div>
+                
+                <!-- List View -->
+                <div x-show="participantsViewMode === 'list'" class="space-y-2 max-h-96 overflow-y-auto">
+                    <template x-for="participant in participants" :key="participant.socketId">
+                        <div class="flex items-center justify-between p-2 bg-gray-50 rounded">
+                            <span x-text="participant.name" class="font-medium" style="color: #0c322c;"></span>
+                            <span x-show="participant.hasVoted && status === 'voting'"
+                                class="text-xs px-2 py-1 rounded-full badge-suse-voted">
+                                <i class="fa-solid fa-check"></i> Voted
+                            </span>
+                            <span x-show="!participant.hasVoted && status === 'voting'"
+                                class="text-xs px-2 py-1 rounded-full badge-suse-waiting">
+                                <i class="fa-solid fa-clock"></i> Waiting
+                            </span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- Toast Notifications -->
+        <div x-show="toast.show" x-transition class="fixed bottom-4 right-4 px-6 py-3 rounded-lg shadow-lg"
+            :class="toast.type === 'error' ? 'bg-red-600' : 'bg-green-600'" style="display: none;">
+            <p class="text-white font-medium" x-text="toast.message"></p>
+        </div>
+
+        <!-- Kicked Modal -->
+        <div x-show="kicked" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center"
+            style="display: none;">
+            <div class="bg-white rounded-lg p-8 max-w-md text-center">
+                <div class="text-6xl mb-4"><i class="fa-solid fa-circle-xmark" style="color: #dc2626;"></i></div>
+                <h3 class="text-2xl font-bold text-gray-900 mb-2">Kicked from Room</h3>
+                <p class="text-gray-600 mb-4">You were removed from this room by the administrator.</p>
+                <button @click="location.reload()"
+                    class="px-6 py-2 text-white rounded-lg transition btn-suse-primary">
+                    OK
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="/javascripts/participant.js"></script>
+</body>
+
+</html>
