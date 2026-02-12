@@ -54,20 +54,22 @@ Everyone votes at once, results revealed together. Ideal for Planning Poker, Hea
 
 1. Access main page
 2. Click on `Create Room`
-4. Share the room code with participants
-5. Wait for participants to join
-6. Enter the voting topic
-7. Choose one or more templates (Fibonacci, 1-5, Traffic Light, etc)
-8. (Optional) Set a timer in seconds
-9. Start the voting
-10. When ready, reveal the results
-12. End the round to start a new one
+3. Share the room code with participants (or let them scan the QR code)
+4. Wait for participants to join
+5. Enter the voting topic
+6. Choose one or more templates (Fibonacci, 1-5, Traffic Light, etc)
+7. (Optional) Set a timer in seconds
+8. Start the voting
+9. When ready, reveal the results
+10. End the round to start a new one
+
+**Tip**: Click on the QR code in the header to show a large version that participants can scan from across the room.
 
 ### Participant
 
 1. Access main page
 2. Click on `Join Room`
-3. Enter the room code and your name
+3. Enter the room code and your name (or scan the QR code from admin's screen to auto-fill the room code)
 4. Click `Join`
 5. Wait for admin to start the voting round
 6. Vote (you can change your vote before reveal)

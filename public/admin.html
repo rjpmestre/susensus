@@ -9,6 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 </head>
 <body class="min-h-screen" style="background: linear-gradient(135deg, #efefef 0%, #e8f7f0 100%);">
   <div x-data="adminApp()" x-init="init()" class="container mx-auto px-4 py-8">
@@ -20,16 +21,47 @@
           <h1 class="text-2xl sm:text-3xl font-bold text-gray-800"><i class="fa-brands fa-suse" style="color: #30ba78;"></i> Susensus</h1>
           <p class="text-sm sm:text-base text-gray-600 mt-1">Simultaneous Real-Time Voting</p>
         </div>
-        <div x-show="roomCode" class="text-left sm:text-right w-full sm:w-auto">
-          <p class="text-xs sm:text-sm text-gray-600">Room Code</p>
-          <div class="flex items-center gap-2 mt-1">
-            <span class="text-2xl sm:text-3xl font-bold room-code-suse" x-text="roomCode"></span>
-            <button @click="copyRoomCode()" 
-                    class="px-2 sm:px-3 py-1 rounded transition text-xs sm:text-sm" style="background-color: #90ebcd; color: #0c322c;">
-              <i class="fa-solid fa-copy"></i> Copy
-            </button>
+        <div x-show="roomCode" class="flex flex-col sm:flex-row items-center gap-4">        
+          <!-- Room Code -->
+          <div class="text-left sm:text-right">
+            <p class="text-xs sm:text-sm text-gray-600">Room Code</p>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-2xl sm:text-3xl font-bold room-code-suse" x-text="roomCode"></span>
+              <button @click="copyRoomCode()" 
+                      class="px-2 sm:px-3 py-1 rounded transition text-xs sm:text-sm" style="background-color: #90ebcd; color: #0c322c;">
+                <i class="fa-solid fa-copy"></i> Copy
+              </button>
+            </div>
+          </div>
+           <!-- QR Code -->
+          <div @click="showQRModal = true" class="bg-white p-2 rounded-lg border-2 cursor-pointer hover:shadow-lg transition" style="border-color: #30ba78;" title="Click to enlarge">
+            <div id="qrcode" class="flex items-center justify-center"></div>
           </div>
         </div>
+      </div>
+    </div>
+
+    <!-- QR Code Modal -->
+    <div x-show="showQRModal" 
+         @click="showQRModal = false"
+         x-transition:enter="transition ease-out duration-200"
+         x-transition:enter-start="opacity-0"
+         x-transition:enter-end="opacity-100"
+         x-transition:leave="transition ease-in duration-150"
+         x-transition:leave-start="opacity-100"
+         x-transition:leave-end="opacity-0"
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
+         style="display: none;">
+      <div @click.stop class="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full text-center">
+        <h3 class="text-2xl font-bold mb-4" style="color: #0c322c;">Scan to Join</h3>
+        <div id="qrcode-large" class="flex items-center justify-center mb-4"></div>
+        <p class="text-sm text-gray-600 mb-2">Room Code: <span class="font-bold text-xl room-code-suse" x-text="roomCode"></span></p>
+        <p class="text-xs text-gray-500 mb-4" x-text="`${globalThis.location.origin}/participant.html?room=${roomCode}`"></p>
+        <button @click="showQRModal = false" 
+                class="px-6 py-2 rounded-lg font-semibold transition" 
+                style="background-color: #30ba78; color: white;">
+          Close
+        </button>
       </div>
     </div>
 

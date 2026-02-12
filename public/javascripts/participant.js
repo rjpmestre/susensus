@@ -27,6 +27,13 @@ function participantApp() {
     init() {
       this.socket = io();
       this.setupSocketListeners();
+      
+      // Check room code in URL
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomCode = urlParams.get('room');
+      if (roomCode) {
+        this.roomCode = roomCode.toUpperCase();
+      }
     },
 
     setupSocketListeners() {

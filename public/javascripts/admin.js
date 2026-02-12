@@ -17,6 +17,7 @@ function adminApp() {
     detailedVotes: {},
     showDetailedVotes: localStorage.getItem('showDetailedVotes') === 'true' || false,
     participantsViewMode: localStorage.getItem('participantsViewMode') || 'cards', // cards | list
+    showQRModal: false,
     initialized: false,
     toast: {
       show: false,
@@ -144,6 +145,7 @@ function adminApp() {
           // Store admin token in localStorage
           localStorage.setItem(`admin_token_${response.code}`, response.adminToken);
           this.loadTemplates();
+          this.generateQRCode();
           this.showToast('Room created successfully!', 'success');
           // Update URL to include room code so refresh works
           window.history.pushState({}, '', `/admin.html?room=${response.code}`);
@@ -170,6 +172,7 @@ function adminApp() {
           this.voteCount = response.voteCount || 0;
           this.status = response.status || 'waiting';
           this.loadTemplates();
+          this.generateQRCode();
           this.showToast('Reconnected to room', 'success');
         } else {
           this.showToast(response.error || 'Error joining room', 'error');
@@ -354,12 +357,49 @@ function adminApp() {
       return formattedParts.join(' + ');
     },
 
+    generateQRCode() {
+      if (!this.roomCode) return;
+      
+      // Generate participant URL with room code
+      const participantUrl = `${globalThis.location.origin}/participant.html?room=${this.roomCode}`;
+      
+      // Clear and generate small QR code for header
+      const qrcodeElement = document.getElementById('qrcode');
+      if (qrcodeElement) {
+        qrcodeElement.innerHTML = '';
+        new QRCode(qrcodeElement, {
+          text: participantUrl,
+          width: 64,
+          height: 64,
+          colorDark: "#30ba78",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.M
+        });
+      }
+      
+      // Clear and generate large QR code for modal
+      const qrcodeLargeElement = document.getElementById('qrcode-large');
+      if (qrcodeLargeElement) {
+        qrcodeLargeElement.innerHTML = '';
+        new QRCode(qrcodeLargeElement, {
+          text: participantUrl,
+          width: 320,
+          height: 320,
+          colorDark: "#30ba78",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H
+        });
+      }
+    },
+
     copyRoomCode() {
       if (!this.roomCode) return;
+      // Generate participant URL with room code
+      const participantUrl = `${globalThis.location.origin}/participant.html?room=${this.roomCode}`;
       
       // Try modern clipboard API first
       if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(this.roomCode).then(() => {
+        navigator.clipboard.writeText(participantUrl).then(() => {
           this.showToast('Code copied!', 'success');
         }).catch(() => {
           this.fallbackCopyRoomCode();
