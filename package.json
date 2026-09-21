@@ -9,7 +9,7 @@
     "cookie-parser": "~1.4.4",
     "debug": "~4.4.3",
     "express": "^5.2.0",
-    "morgan": "~1.11.0",
+    "morgan": "~1.12.1",
     "socket.io": "^4.8.3"
   }
 }
